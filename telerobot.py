@@ -31,13 +31,7 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def main():
     # 创建应用
-    app = (
-        Application.builder()
-        .token(TOKEN)
-        .concurrent_updates(True)
-        .connection_pool_size(8)
-        .build()
-    )
+    app = Application.builder().token(TOKEN).build()
 
     # 添加处理程序
     app.add_handler(CommandHandler('start', start_command))
@@ -49,7 +43,10 @@ async def main():
     
     # 开始轮询
     print('机器人启动中...')
-    await app.run_polling()
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    await app.updater.idle()
 
 if __name__ == '__main__':
     import asyncio
