@@ -36,7 +36,7 @@ async def main():
         .token(TOKEN)
         .connect_timeout(30)
         .read_timeout(30)
-        .get_updates_read_timeout(30)
+        .pool_timeout(30)
         .build()
     )
 
@@ -50,7 +50,9 @@ async def main():
     
     # 开始轮询
     print('机器人启动中...')
-    await app.run_polling(drop_pending_updates=True)
+    await app.initialize()
+    await app.start()
+    await app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     import asyncio
