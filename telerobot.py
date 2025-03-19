@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import asyncio
 
 # 替换为你的bot token
 TOKEN = "7962892675:AAHpTzi_MHNcO3coYyJMN3lQ7I3fYJMGdEA"
@@ -34,9 +35,11 @@ async def main():
     app = (
         Application.builder()
         .token(TOKEN)
-        .connect_timeout(30)
-        .read_timeout(30)
-        .pool_timeout(30)
+        .connect_timeout(10)
+        .read_timeout(10)
+        .pool_timeout(10)
+        .get_updates_read_timeout(10)
+        .write_timeout(10)
         .build()
     )
 
@@ -52,8 +55,11 @@ async def main():
     print('机器人启动中...')
     await app.initialize()
     await app.start()
-    await app.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        await app.updater.start_polling()
+        await asyncio.Event().wait()  # 保持程序运行
+    finally:
+        await app.stop()
 
 if __name__ == '__main__':
-    import asyncio
     asyncio.run(main())
