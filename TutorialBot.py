@@ -54,38 +54,40 @@ async def echo(update: Update, context: CallbackContext) -> None:
         await update.message.copy(update.message.chat_id)
 
 
-def scream(update: Update, context: CallbackContext) -> None:
+async def scream(update: Update, context: CallbackContext) -> None:
     """
     处理 /scream 命令
     开启大写模式
     """
     global screaming
     screaming = True
+    await update.message.reply_text("大写模式已开启！")
 
 
-def whisper(update: Update, context: CallbackContext) -> None:
+async def whisper(update: Update, context: CallbackContext) -> None:
     """
     处理 /whisper 命令
     关闭大写模式
     """
     global screaming
     screaming = False
+    await update.message.reply_text("大写模式已关闭！")
 
 
-def menu(update: Update, context: CallbackContext) -> None:
+async def menu(update: Update, context: CallbackContext) -> None:
     """
     处理 /menu 命令
     显示带有内联按钮的交互菜单
     """
-    context.bot.send_message(
-        update.message.from_user.id,
+    await context.bot.send_message(
+        update.message.chat_id,  # 使用 chat_id 而不是 user_id
         FIRST_MENU,
         parse_mode=ParseMode.HTML,
         reply_markup=FIRST_MENU_MARKUP
     )
 
 
-def button_tap(update: Update, context: CallbackContext) -> None:
+async def button_tap(update: Update, context: CallbackContext) -> None:
     """
     处理菜单按钮的点击事件
     根据按钮类型切换不同的菜单视图
@@ -104,12 +106,12 @@ def button_tap(update: Update, context: CallbackContext) -> None:
         markup = FIRST_MENU_MARKUP
 
     # 响应按钮点击，结束加载动画
-    update.callback_query.answer()
+    await update.callback_query.answer()
 
     # 更新消息内容，显示新的菜单
-    update.callback_query.message.edit_text(
+    await update.callback_query.message.edit_text(
         text,
-        ParseMode.HTML,
+        parse_mode=ParseMode.HTML,
         reply_markup=markup
     )
 
