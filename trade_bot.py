@@ -191,8 +191,11 @@ async def get_wallet_balance(address: str) -> tuple:
         else:
             balance_source = 'Solana Beach'
         
+        # 固定 SOL 价格为 $100 用于估值计算
+        sol_price = 100.0
         if balance > 0:
-            return (round(balance, 4), 0.0, balance_source)
+            usd_value = balance * sol_price
+            return (round(balance, 4), round(usd_value, 2), balance_source)
         
         return (round(balance, 4) if balance else 0.0, 0.0, balance_source)
             
@@ -402,13 +405,14 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.data == "current_wallet":
             if user_id in user_wallets:
                 wallet = user_wallets[user_id]
-                balance, _, balance_source = await get_wallet_balance(wallet)
+                balance, usd_value, balance_source = await get_wallet_balance(wallet)
                 
                 new_text = (
                     f"📱 当前连接的钱包信息：\n\n"
                     f"📍 地址: {wallet}\n"
                     f"💰 余额: {balance} SOL ({balance_source})\n"
-                    f"🕒 更新时间: {datetime.now().strftime('%H:%M:%S')}"  # 添加时间戳
+                    f"💵 估值: ${usd_value} (Binance)\n"
+                    f"🕒 更新时间: {datetime.now().strftime('%H:%M:%S')}"
                 )
                 
                 try:
@@ -522,3 +526,56 @@ if __name__ == '__main__':
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n收到退出信号，机器人已停止")
+
+
+async def get_sol_price_binance() -> float:
+    """从 Binance 获取 SOL 当前价格"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=3, connect=2)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            url = "https://api.binance.com/api/v3/ticker/price"
+            params = {'symbol': 'SOLUSDT'}
+            
+            async with session.get(url, params=params) as response:
+                if response.status != 200:
+                    print(f"Binance API 错误: {response.status}")
+                    return 0.0
+                
+                data = await response.json()
+                if 'price' in data:
+                    price = float(data['price'])
+                    print(f"Binance SOL 价格: ${price}")
+                    return price
+                
+                print(f"Binance API 响应格式错误: {data}")
+                return 0.0
+    except Exception as e:
+        print(f"获取 Binance 价格错误: {e}")
+        return 0.0
+
+async def get_wallet_balance(address: str) -> tuple:
+    """获取钱包余额"""
+    try:
+        # 并行执行余额和价格查询
+        balance_task = get_wallet_balance_solanabeach(address)
+        price_task = get_sol_price_binance()
+        
+        balance, sol_price = await asyncio.gather(balance_task, price_task)
+        
+        # 如果 Solana Beach 查询失败，尝试备用节点
+        if balance is None:
+            print("Solana Beach 查询失败，使用备用节点")
+            balance = await get_wallet_balance_rpc(address, 'devnet')
+            balance_source = 'Solana Devnet'
+        else:
+            balance_source = 'Solana Beach'
+        
+        if balance > 0 and sol_price > 0:
+            usd_value = balance * sol_price
+            return (round(balance, 4), round(usd_value, 2), balance_source)
+        
+        return (round(balance, 4) if balance else 0.0, 0.0, balance_source)
+            
+    except Exception as e:
+        print(f"获取钱包信息错误: {e}")
+        return (0.0, 0.0, 'Unknown')
