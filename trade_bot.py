@@ -6,6 +6,13 @@ import ssl
 from decimal import Decimal
 from datetime import datetime
 
+# 第三方库导入
+import aiohttp
+import base58
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+
+
 # 设置日志记录器
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -17,12 +24,6 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
 logging.getLogger("asyncio").setLevel(logging.WARNING)
-
-# 第三方库导入
-import aiohttp
-import base58
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 # 配置常量
 CONFIG = {
@@ -142,41 +143,6 @@ async def get_wallet_balance_rpc(address: str, network: str = 'devnet') -> float
     except Exception as e:
         print(f"查询余额错误: {e}")
         return 0.0
-
-async def get_sol_price_okx() -> float:
-    """从 OKX 获取 SOL 当前价格"""
-    try:
-        timeout = aiohttp.ClientTimeout(total=3, connect=2)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{CONFIG['OKX_API']['BASE_URL']}/api/v5/market/ticker"
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            }
-            params = {
-                'instId': 'SOL-USDT'  # 使用现货价格
-            }
-            
-            async with session.get(url, headers=headers, params=params) as response:
-                if response.status != 200:
-                    print(f"OKX API 错误: {response.status}")
-                    return 0.0
-                
-                data = await response.json()
-                if data.get('code') == '0' and data.get('data'):
-                    last_price = float(data['data'][0]['last'])
-                    print(f"OKX SOL 价格: ${last_price}")
-                    return last_price
-                
-                print(f"OKX API 响应格式错误: {data}")
-                return 0.0
-    except asyncio.TimeoutError:
-        print("OKX API 连接超时")
-        return 0.0
-    except Exception as e:
-        print(f"获取 OKX 价格错误: {e}")
-        return 0.0
-
 async def get_wallet_balance(address: str) -> tuple:
     """获取钱包余额"""
     try:
