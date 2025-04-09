@@ -492,8 +492,6 @@ if __name__ == '__main__':
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n收到退出信号，机器人已停止")
-
-
 async def get_sol_price_binance() -> float:
     """从 Binance 获取 SOL 当前价格"""
     try:
