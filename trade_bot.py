@@ -36,7 +36,7 @@ CONFIG = {
         'testnet': "https://api.testnet.solana.com",
     },
     'API_KEYS': {
-        'ankr': "de0e1069a888ec0b53dfbf8f033faff1696459c067a730d0a7b0baaf717f9fd5",
+#        'ankr': "de0e1069a888ec0b53dfbf8f033faff1696459c067a730d0a7b0baaf717f9fd5",
         'solanabeach': "cffef7d0-bc03-4b34-abfc-e20f271c1025",
     },
     'CURRENT_NETWORK': 'solanabeach',
@@ -64,7 +64,7 @@ MAIN_MENU_MARKUP = InlineKeyboardMarkup([
     [InlineKeyboardButton("⚙️ 设置", callback_data="settings")]
 ])
 
-# 工具函数
+# 工具函数，返回一个布尔值来判断钱包的地址输入是否合法
 def is_valid_solana_address(address: str) -> bool:
     """验证 Solana 钱包地址"""
     try:
@@ -81,11 +81,6 @@ async def get_wallet_balance_solanabeach(address: str) -> tuple:
             "Accept": "application/json",
             "Authorization": f"Bearer {CONFIG['API_KEYS']['solanabeach']}"
         }
-        
-        # 创建自定义 SSL 上下文
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
         
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers, ssl=ssl_context) as response:
