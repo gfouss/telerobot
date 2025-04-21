@@ -6,6 +6,10 @@ import ssl
 from decimal import Decimal
 from datetime import datetime
 
+#导入OKX需要的模块
+import okx.Funding as Funding
+import okx.Account as Account
+
 # 第三方库导入
 import aiohttp
 import base58
@@ -13,7 +17,6 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 #本代码使用OKX交易所进行交易！
-
 
 # 设置日志记录器
 logger = logging.getLogger(__name__)
@@ -30,24 +33,15 @@ logging.getLogger("asyncio").setLevel(logging.WARNING)
 # 配置常量
 CONFIG = {
     'TOKEN': "7962892675:AAHpTzi_MHNcO3coYyJMN3lQ7I3fYJMGdEA",  # Telegram Bot Token
-    'SOLANA_RPC_URLS': {
-        'solanabeach': "https://api.solanabeach.io/v1",
-        'ankr_devnet': "https://rpc.ankr.com/solana_devnet",
-        'devnet': "https://api.devnet.solana.com",
-        'mainnet': "https://api.mainnet-beta.solana.com",
-        'testnet': "https://api.testnet.solana.com",
-    },
-    'API_KEYS': {
-        'ankr': "de0e1069a888ec0b53dfbf8f033faff1696459c067a730d0a7b0baaf717f9fd5",
-        'solanabeach': "cffef7d0-bc03-4b34-abfc-e20f271c1025",
-    },
-    'CURRENT_NETWORK': 'solanabeach',
-    'SOLSCAN_API_URL': "https://public-api.solscan.io",
     'ADMIN_CHAT_ID': 7792247162,
     'WALLET_FILE': "wallets.json",  # 添加钱包文件配置
     'OKX_API': {
         'BASE_URL': 'https://www.okx.com',
         'TICKER_PATH': '/api/v5/market/ticker',
+        'API_KEY': "096b91c1-2b92-4880-bda4-90b3ecb0c44e",
+        'SECRET_KEY': "9C42297797BDF0063A02FFE3D7417B6A",
+        'PASSPHRASE': "1qaz@WSX12",
+        'FLAG': "0"  # 实盘: 0, 模拟盘: 1
     }
 }
 
@@ -165,28 +159,45 @@ async def get_wallet_balance_rpc(address: str, network: str = 'devnet') -> float
 async def get_wallet_balance(address: str) -> tuple:
     """获取钱包余额"""
     try:
-        # 尝试从 Solana Beach 获取余额
-        balance = await get_wallet_balance_solanabeach(address)
+        # 初始化OKX API
+        accountAPI = Account.AccountAPI(
+            CONFIG['OKX_API']['API_KEY'],
+            CONFIG['OKX_API']['SECRET_KEY'],
+            CONFIG['OKX_API']['PASSPHRASE'],
+            False,
+            CONFIG['OKX_API']['FLAG']
+        )
         
-        # 如果 Solana Beach 查询失败，尝试备用节点
-        if balance is None:
-            print("Solana Beach 查询失败，使用备用节点")
-            balance = await get_wallet_balance_rpc(address, 'devnet')
-            balance_source = 'Solana Devnet'
-        else:
-            balance_source = 'Solana Beach'
+        # 获取账户余额
+        result = accountAPI.get_account_balance()
         
-        # 固定 SOL 价格为 $100 用于估值计算
-        sol_price = 100.0
-        if balance > 0:
-            usd_value = balance * sol_price
-            return (round(balance, 4), round(usd_value, 2), balance_source)
+        # 保存账户余额到文件
+        with open('currencies.txt', 'w') as file:
+            json.dump(result, file, indent=4)
         
-        return (round(balance, 4) if balance else 0.0, 0.0, balance_source)
+        # 解析余额信息
+        trading_balance = 0.0  # 交易账户余额
+        funding_balance = 0.0  # 资金账户余额
+        usd_value = 0.0
+        balance_source = 'OKX'
+        currency = 'UNKNOWN'  # 添加币种信息
+        
+        if isinstance(result, dict) and result.get('code') == '0':
+            for account_data in result.get('data', []):
+                details = account_data.get('details', [])
+                sol_detail = next((detail for detail in details if detail.get('ccy') == 'SOL'), None)
+                if sol_detail:
+                    trading_balance = float(sol_detail.get('availBal', 0))  # 交易账户可用余额
+                    funding_balance = float(sol_detail.get('cashBal', 0))   # 资金账户余额
+                    usd_value = float(sol_detail.get('eqUsd', 0))
+                    currency = sol_detail.get('ccy', 'UNKNOWN')  # 获取币种信息
+                    break
+        
+        return (round(trading_balance, 4), round(funding_balance, 4), round(usd_value, 2), balance_source, currency)
             
     except Exception as e:
-        print(f"获取钱包信息错误: {e}")
-        return (0.0, 0.0, 'Unknown')
+        logger.error(f"获取OKX钱包信息错误: {e}")
+        return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
 async def get_sol_price_okx() -> float:
     """从 OKX 获取 SOL 当前价格"""
@@ -194,33 +205,24 @@ async def get_sol_price_okx() -> float:
         timeout = aiohttp.ClientTimeout(total=5)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             url = f"{CONFIG['OKX_API']['BASE_URL']}/api/v5/market/ticker"
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            }
-            params = {
-                'instId': 'SOL-USDT-SWAP'  # 使用永续合约价格
-            }
+            params = {'instId': 'SOL-USDT-SWAP'}
             
-            async with session.get(url, headers=headers, params=params) as response:
+            async with session.get(url, params=params) as response:
                 if response.status != 200:
-                    print(f"OKX API 错误: {response.status}")
+                    logger.error(f"OKX API 错误: {response.status}")
                     return 0.0
                 
                 data = await response.json()
                 if data.get('code') == '0' and data.get('data'):
-                    # 获取最新成交价
-                    last_price = float(data['data'][0]['last'])
-                    mark_price = float(data['data'][0]['markPx'])
-                    # 使用 mark price 作为参考价格
-                    price = mark_price or last_price
-                    print(f"OKX SOL 价格: ${price}")
-                    return price
+                    ticker_data = data['data'][0]
+                    mark_price = float(ticker_data.get('markPx', 0))
+                    last_price = float(ticker_data.get('last', 0))
+                    return mark_price or last_price
                 
-                print(f"OKX API 响应格式错误: {data}")
+                logger.error(f"OKX API 响应格式错误: {data}")
                 return 0.0
     except Exception as e:
-        print(f"获取 OKX 价格错误: {e}")
+        logger.error(f"获取 OKX 价格错误: {e}")
         return 0.0
 
 async def get_sol_price() -> float:
@@ -390,13 +392,16 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.data == "current_wallet":
             if user_id in user_wallets:
                 wallet = user_wallets[user_id]
-                balance, usd_value, balance_source = await get_wallet_balance(wallet)
+                trading_balance, funding_balance, usd_value, balance_source, currency = await get_wallet_balance(wallet)
                 
                 new_text = (
                     f"📱 当前连接的钱包信息：\n\n"
                     f"📍 地址: {wallet}\n"
-                    f"💰 余额: {balance} SOL ({balance_source})\n"
-                    f"💵 估值: ${usd_value} (Binance)\n"
+                    f"💰 交易账户余额: {trading_balance} {currency} ({balance_source})\n"
+                    f"💵 交易账户估值: ${usd_value} (OKX)\n"
+                    f"━━━━━━━━━━━━━━\n"
+                    f"💳 资金账户余额: {funding_balance} {currency} ({balance_source})\n"
+                    f"💵 资金账户估值: 资金账户暂不提供估值，可用交易账户参考！\n"
                     f"🕒 更新时间: {datetime.now().strftime('%H:%M:%S')}"
                 )
                 
