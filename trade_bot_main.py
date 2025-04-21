@@ -75,33 +75,50 @@ def is_valid_solana_address(address: str) -> bool:
 
 async def get_wallet_balance_solanabeach(address: str) -> tuple:
     """从 Solanabeach 获取钱包余额"""
-    try:
-        url = f"{CONFIG['SOLANA_RPC_URLS']['solanabeach']}/account/{address}"
-        headers = {
-            "Accept": "application/json",
-            "Authorization": f"Bearer {CONFIG['API_KEYS']['solanabeach']}"
-        }
-        
-        # 创建自定义 SSL 上下文
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, ssl=ssl_context) as response:
-                if response.status != 200:
-                    print(f"Solanabeach API 错误: {response.status}")
+    max_retries = 3
+    retry_delay = 1
+    
+    for attempt in range(max_retries):
+        try:
+            url = f"{CONFIG['SOLANA_RPC_URLS']['solanabeach']}/account/{address}"
+            headers = {
+                "Accept": "application/json",
+                "Authorization": f"Bearer {CONFIG['API_KEYS']['solanabeach']}"
+            }
+            
+            # 创建自定义 SSL 上下文
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, ssl=ssl_context) as response:
+                    if response.status == 500:
+                        logger.error(f"Solanabeach API 服务器错误 (尝试 {attempt + 1}/{max_retries})")
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(retry_delay)
+                            continue
+                        return None
+                    
+                    if response.status != 200:
+                        logger.error(f"Solanabeach API 错误: {response.status}")
+                        return None
+                    
+                    data = await response.json()
+                    if data.get("value", {}).get("base", {}).get("balance") is not None:
+                        balance_sol = float(data["value"]["base"]["balance"]) / 1e9
+                        return balance_sol
+                    logger.warning(f"Solanabeach 响应格式错误: {data}")
                     return None
-                
-                data = await response.json()
-                if data.get("value", {}).get("base", {}).get("balance") is not None:
-                    balance_sol = float(data["value"]["base"]["balance"]) / 1e9
-                    return balance_sol
-                print(f"Solanabeach 响应格式错误: {data}")
-                return None
-    except Exception as e:
-        print(f"Solanabeach 查询错误: {e}")
-        return None
+                    
+        except Exception as e:
+            logger.error(f"Solanabeach 查询错误 (尝试 {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                continue
+            return None
+    
+    return None
 
 async def get_wallet_balance_rpc(address: str, network: str = 'devnet') -> float:
     """从 RPC 节点获取钱包余额"""
