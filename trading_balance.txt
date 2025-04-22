@@ -7,17 +7,17 @@
             "details": [
                 {
                     "accAvgPx": "",
-                    "availBal": "0.005",
+                    "availBal": "0.008",
                     "availEq": "",
                     "borrowFroz": "",
-                    "cashBal": "0.005",
+                    "cashBal": "0.008",
                     "ccy": "SOL",
                     "clSpotInUseAmt": "",
                     "collateralEnabled": false,
                     "crossLiab": "",
                     "disEq": "0",
-                    "eq": "0.005",
-                    "eqUsd": "0.6878000000000001",
+                    "eq": "0.008",
+                    "eqUsd": "1.162",
                     "fixedBal": "0",
                     "frozenBal": "0",
                     "imr": "",
@@ -45,7 +45,7 @@
                     "totalPnl": "",
                     "totalPnlRatio": "",
                     "twap": "0",
-                    "uTime": "1745252323941",
+                    "uTime": "1745334254253",
                     "upl": "",
                     "uplLiab": ""
                 }
@@ -60,8 +60,8 @@
             "notionalUsdForOption": "",
             "notionalUsdForSwap": "",
             "ordFroz": "",
-            "totalEq": "0.6878000000000001",
-            "uTime": "1745253300174",
+            "totalEq": "1.162",
+            "uTime": "1745335465394",
             "upl": ""
         }
     ],

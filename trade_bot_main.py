@@ -69,93 +69,6 @@ def is_valid_solana_address(address: str) -> bool:
     except:
         return False
 
-async def get_wallet_balance_solanabeach(address: str) -> tuple:
-    """从 Solanabeach 获取钱包余额"""
-    max_retries = 3
-    retry_delay = 1
-    
-    for attempt in range(max_retries):
-        try:
-            url = f"{CONFIG['SOLANA_RPC_URLS']['solanabeach']}/account/{address}"
-            headers = {
-                "Accept": "application/json",
-                "Authorization": f"Bearer {CONFIG['API_KEYS']['solanabeach']}"
-            }
-            
-            # 创建自定义 SSL 上下文
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, ssl=ssl_context) as response:
-                    if response.status == 500:
-                        logger.error(f"Solanabeach API 服务器错误 (尝试 {attempt + 1}/{max_retries})")
-                        if attempt < max_retries - 1:
-                            await asyncio.sleep(retry_delay)
-                            continue
-                        return None
-                    
-                    if response.status != 200:
-                        logger.error(f"Solanabeach API 错误: {response.status}")
-                        return None
-                    
-                    data = await response.json()
-                    if data.get("value", {}).get("base", {}).get("balance") is not None:
-                        balance_sol = float(data["value"]["base"]["balance"]) / 1e9
-                        return balance_sol
-                    logger.warning(f"Solanabeach 响应格式错误: {data}")
-                    return None
-                    
-        except Exception as e:
-            logger.error(f"Solanabeach 查询错误 (尝试 {attempt + 1}/{max_retries}): {e}")
-            if attempt < max_retries - 1:
-                await asyncio.sleep(retry_delay)
-                continue
-            return None
-    
-    return None
-
-async def get_wallet_balance_rpc(address: str, network: str = 'devnet') -> float:
-    """从 RPC 节点获取钱包余额"""
-    try:
-        rpc_url = CONFIG['SOLANA_RPC_URLS'][network]
-        headers = {
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getBalance",
-            "params": [address]
-        }
-        
-        # 创建自定义 SSL 上下文
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-        
-        # 设置更短的超时时间
-        timeout = aiohttp.ClientTimeout(total=3, connect=2)
-        
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(rpc_url, json=payload, headers=headers, ssl=ssl_context) as response:
-                if response.status != 200:
-                    print(f"RPC 节点响应错误: {response.status}")
-                    return 0.0
-                
-                data = await response.json()
-                if "result" in data:
-                    balance_sol = float(data["result"]) / 1e9
-                    return balance_sol
-                return 0.0
-    except asyncio.TimeoutError:
-        print(f"RPC 节点 {network} 连接超时")
-        return 0.0
-    except Exception as e:
-        print(f"查询余额错误: {e}")
-        return 0.0
 async def get_wallet_balance(address: str) -> tuple:
     """获取钱包余额"""
     try:
@@ -172,12 +85,12 @@ async def get_wallet_balance(address: str) -> tuple:
         result = accountAPI.get_account_balance()
         
         # 保存账户余额到文件
-        with open('currencies.txt', 'w') as file:
+        with open('trading_balance.txt', 'w') as file:
             json.dump(result, file, indent=4)
         
         # 解析余额信息
         trading_balance = 0.0  # 交易账户余额
-        funding_balance = 0.0  # 资金账户余额
+        cash_balance = 0.0  # 币种余额
         usd_value = 0.0
         balance_source = 'OKX'
         currency = 'UNKNOWN'  # 添加币种信息
@@ -188,15 +101,56 @@ async def get_wallet_balance(address: str) -> tuple:
                 sol_detail = next((detail for detail in details if detail.get('ccy') == 'SOL'), None)
                 if sol_detail:
                     trading_balance = float(sol_detail.get('availBal', 0))  # 交易账户可用余额
-                    funding_balance = float(sol_detail.get('cashBal', 0))   # 资金账户余额
+                    cash_balance = float(sol_detail.get('cashBal', 0))   # 币种余额
                     usd_value = float(sol_detail.get('eqUsd', 0))
                     currency = sol_detail.get('ccy', 'UNKNOWN')  # 获取币种信息
                     break
         
-        return (round(trading_balance, 4), round(funding_balance, 4), round(usd_value, 2), balance_source, currency)
+        return (round(trading_balance, 4), round(cash_balance, 4), round(usd_value, 2), balance_source, currency)
             
     except Exception as e:
         logger.error(f"获取OKX钱包信息错误: {e}")
+        return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
+
+
+async def get_funding_balance(address: str) -> tuple:
+    """获取资金账户余额"""
+    try:
+        # 初始化OKX Funding API
+        fundingAPI = Funding.FundingAPI(
+            CONFIG['OKX_API']['API_KEY'],
+            CONFIG['OKX_API']['SECRET_KEY'],
+            CONFIG['OKX_API']['PASSPHRASE'],
+            False,
+            CONFIG['OKX_API']['FLAG']
+        )
+        
+        # 获取资金账户余额
+        result = fundingAPI.get_balances()
+        
+        # 保存资金账户余额到文件
+        with open('funding_balance.txt', 'w') as file:
+            json.dump(result, file, indent=4)
+        
+        # 解析余额信息
+        balance = 0.0
+        usd_value = 0.0
+        balance_source = 'OKX'
+        currency = 'UNKNOWN'
+        
+        if isinstance(result, dict) and result.get('code') == '0':
+            for balance_data in result.get('data', []):
+                if balance_data.get('ccy') == 'SOL':
+                    balance = float(balance_data.get('bal', 0))
+                    available = float(balance_data.get('availBal', 0))
+                    frozen = float(balance_data.get('frozenBal', 0))
+                    currency = balance_data.get('ccy', 'UNKNOWN')
+                    break
+        
+        return (round(balance, 4), round(available, 4), round(frozen, 4), balance_source, currency)
+            
+    except Exception as e:
+        logger.error(f"获取OKX资金账户信息错误: {e}")
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
 async def get_sol_price_okx() -> float:
@@ -252,56 +206,6 @@ def save_wallets(wallets):
 
 # 初始化用户钱包存储
 user_wallets = load_wallets()
-
-# RPC 节点相关函数
-async def test_rpc_node(network='testnet'):
-    """测试指定网络的 RPC 节点"""
-    try:
-        rpc_url = CONFIG['SOLANA_RPC_URLS'][network]
-        print(f"正在测试 {network} RPC 节点: {rpc_url}")
-        
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getVersion",
-            "params": []
-        }
-        
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json"
-        }
-        
-        timeout = aiohttp.ClientTimeout(total=10)
-        start_time = asyncio.get_event_loop().time()
-        
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(rpc_url, json=payload, headers=headers) as response:
-                end_time = asyncio.get_event_loop().time()
-                response_time = round((end_time - start_time) * 1000)
-                
-                if response.status != 200:
-                    return False, response_time, f"HTTP 错误: {response.status}"
-                
-                data = await response.json()
-                
-                if "error" in data:
-                    return False, response_time, f"RPC 错误: {data['error']}"
-                
-                if "result" in data:
-                    version = data["result"].get("solana-core", "未知")
-                    feature_set = data["result"].get("feature-set", "未知")
-                    print(f"节点版本: {version}, 特性集: {feature_set}")
-                    return True, response_time, f"版本: {version}"
-                
-                return False, response_time, "无效的响应格式"
-                
-        return False, 0, "请求失败"
-    except asyncio.TimeoutError:
-        return False, 10000, "请求超时"
-    except Exception as e:
-        return False, 0, f"错误: {str(e)}"
 
 # Telegram 命令处理函数
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -392,16 +296,20 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.data == "current_wallet":
             if user_id in user_wallets:
                 wallet = user_wallets[user_id]
-                trading_balance, funding_balance, usd_value, balance_source, currency = await get_wallet_balance(wallet)
-                
+                trading_balance, trading_cash_balance, trading_usd_value, trading_balance_source, trading_currency = await get_wallet_balance(wallet)
+                funding_balance, funding_available, funding_frozen, funding_source, funding_currency = await get_funding_balance(wallet)
+
                 new_text = (
                     f"📱 当前连接的钱包信息：\n\n"
                     f"📍 地址: {wallet}\n"
-                    f"💰 交易账户余额: {trading_balance} {currency} ({balance_source})\n"
-                    f"💵 交易账户估值: ${usd_value} (OKX)\n"
+                    f"💰 交易账户余额: {trading_balance} {trading_currency} ({trading_balance_source})\n"
+                    f"💵 交易账户估值: ${trading_usd_value} ({trading_balance_source})\n"
+                    f"💳 资金账户余额: {trading_cash_balance} {trading_currency} ({trading_balance_source})\n"
+                    f"💵 资金账户估值: OKX资金账户暂不提供估值，可用交易账户参考！\n"
                     f"━━━━━━━━━━━━━━\n"
-                    f"💳 资金账户余额: {funding_balance} {currency} ({balance_source})\n"
-                    f"💵 资金账户估值: 资金账户暂不提供估值，可用交易账户参考！\n"
+                    f"💳 资金账户总余额: {funding_balance} {funding_currency} ({funding_source})\n"
+                    f"💵 可用余额: {funding_available} {funding_currency} ({funding_source})\n"
+                    f"💵 冻结余额: {funding_frozen} {funding_currency} ({funding_source})\n"
                     f"🕒 更新时间: {datetime.now().strftime('%H:%M:%S')}"
                 )
                 
@@ -516,54 +424,4 @@ if __name__ == '__main__':
         asyncio.run(main())
     except KeyboardInterrupt:
         print("\n收到退出信号，机器人已停止")
-async def get_sol_price_binance() -> float:
-    """从 Binance 获取 SOL 当前价格"""
-    try:
-        timeout = aiohttp.ClientTimeout(total=3, connect=2)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = "https://api.binance.com/api/v3/ticker/price"
-            params = {'symbol': 'SOLUSDT'}
-            
-            async with session.get(url, params=params) as response:
-                if response.status != 200:
-                    print(f"Binance API 错误: {response.status}")
-                    return 0.0
-                
-                data = await response.json()
-                if 'price' in data:
-                    price = float(data['price'])
-                    print(f"Binance SOL 价格: ${price}")
-                    return price
-                
-                print(f"Binance API 响应格式错误: {data}")
-                return 0.0
-    except Exception as e:
-        print(f"获取 Binance 价格错误: {e}")
-        return 0.0
 
-async def get_wallet_balance(address: str) -> tuple:
-    """获取钱包余额"""
-    try:
-        # 并行执行余额和价格查询
-        balance_task = get_wallet_balance_solanabeach(address)
-        price_task = get_sol_price_binance()
-        
-        balance, sol_price = await asyncio.gather(balance_task, price_task)
-        
-        # 如果 Solana Beach 查询失败，尝试备用节点
-        if balance is None:
-            print("Solana Beach 查询失败，使用备用节点")
-            balance = await get_wallet_balance_rpc(address, 'devnet')
-            balance_source = 'Solana Devnet'
-        else:
-            balance_source = 'Solana Beach'
-        
-        if balance > 0 and sol_price > 0:
-            usd_value = balance * sol_price
-            return (round(balance, 4), round(usd_value, 2), balance_source)
-        
-        return (round(balance, 4) if balance else 0.0, 0.0, balance_source)
-            
-    except Exception as e:
-        print(f"获取钱包信息错误: {e}")
-        return (0.0, 0.0, 'Unknown')
