@@ -2,7 +2,6 @@
 import asyncio
 import json
 import logging
-import ssl
 from decimal import Decimal
 from datetime import datetime
 
