@@ -1,0 +1,14 @@
+{
+    "timestamp": "2025-04-24 00:34:22.967000",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "500"
+    },
+    "result": {
+        "msg": "This API key doesn't have permission to use this function",
+        "code": "50120"
+    }
+}
