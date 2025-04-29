@@ -26,11 +26,6 @@ class TradeManager:
             flag (str): 交易环境标志
                        "0": 实盘交易
                        "1": 模拟交易（默认）
-        
-        功能:
-            - 初始化OKX交易API客户端
-            - 设置API访问凭证
-            - 配置交易环境（实盘/模拟）
         """
         self.tradeAPI = TradeAPI(
             api_key,
@@ -39,6 +34,7 @@ class TradeManager:
             False,  # 是否使用WebSocket，这里设置为False表示使用REST API
             flag
         )
+        self.is_demo = flag == "1"  # 添加模拟盘标志
     
     async def place_order(self, inst_id: str, side: str, amount: Decimal) -> dict:
         """
@@ -53,6 +49,14 @@ class TradeManager:
         - dict: 订单结果
         """
         try:
+            # 如果是模拟盘，检查是否是交易账户操作
+            if self.is_demo and not inst_id.endswith('-SWAP'):
+                return {
+                    "success": False,
+                    "message": "模拟盘仅支持合约交易",
+                    "data": None
+                }
+                
             # 验证参数
             if not inst_id or not side or not amount:
                 return {

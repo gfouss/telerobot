@@ -40,10 +40,17 @@ CONFIG = {
     'OKX_API': {
         'BASE_URL': 'https://www.okx.com',
         'TICKER_PATH': '/api/v5/market/ticker',
-        'API_KEY': "096b91c1-2b92-4880-bda4-90b3ecb0c44e",
-        'SECRET_KEY': "9C42297797BDF0063A02FFE3D7417B6A",
-        'PASSPHRASE': "1qaz@WSX12",
-        'FLAG': "0"  # 实盘: 0, 模拟盘: 1
+        'LIVE': {  # 实盘配置
+            'API_KEY': "096b91c1-2b92-4880-bda4-90b3ecb0c44e",
+            'SECRET_KEY': "9C42297797BDF0063A02FFE3D7417B6A",
+            'PASSPHRASE': "1qaz@WSX12",
+        },
+        'DEMO': {  # 模拟盘配置
+            'API_KEY': "84c23963-fa20-4bbb-b839-2430201e0b88",
+            'SECRET_KEY': "B4F29DC1D45E9DC84290D58244D60005",
+            'PASSPHRASE': "1qaz@WSX12",
+        },
+        'FLAG': "1"  # 1: 模拟盘, 0: 实盘
     },
     'TRADE': {
         'DEFAULT_INST_ID': 'SOL-USDT-SWAP',  # 默认交易对
@@ -86,7 +93,7 @@ def is_valid_solana_address(address: str) -> bool:
 
 async def get_wallet_balance(address: str) -> tuple:
     """
-    使用OKX API 获取指定钱包地址的余额信息
+    获取指定钱包地址的余额信息
     
     参数:
         address (str): Solana 钱包地址
@@ -102,10 +109,10 @@ async def get_wallet_balance(address: str) -> tuple:
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -157,12 +164,19 @@ async def get_funding_balance(address: str) -> tuple:
             - currency (str): 货币类型
     """
     try:
+        # 初始化变量
+        balance = 0.0
+        available = 0.0  # 添加初始化
+        frozen = 0.0     # 添加初始化
+        balance_source = 'OKX'
+        currency = 'UNKNOWN'
+        
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -172,12 +186,6 @@ async def get_funding_balance(address: str) -> tuple:
         # 保存资金账户余额到文件
         with open('funding_balance.txt', 'w') as file:
             json.dump(result, file, indent=4)
-        
-        # 解析余额信息
-        balance = 0.0
-        usd_value = 0.0
-        balance_source = 'OKX'
-        currency = 'UNKNOWN'
         
         if isinstance(result, dict) and result.get('code') == '0':
             for balance_data in result.get('data', []):
@@ -381,9 +389,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # 执行交易
         trade_manager = TradeManager(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -474,10 +482,10 @@ async def get_wallet_balance(address: str) -> tuple:
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -529,12 +537,19 @@ async def get_funding_balance(address: str) -> tuple:
             - currency (str): 货币类型
     """
     try:
+        # 初始化变量
+        balance = 0.0
+        available = 0.0  # 添加初始化
+        frozen = 0.0     # 添加初始化
+        balance_source = 'OKX'
+        currency = 'UNKNOWN'
+        
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -544,12 +559,6 @@ async def get_funding_balance(address: str) -> tuple:
         # 保存资金账户余额到文件
         with open('funding_balance.txt', 'w') as file:
             json.dump(result, file, indent=4)
-        
-        # 解析余额信息
-        balance = 0.0
-        usd_value = 0.0
-        balance_source = 'OKX'
-        currency = 'UNKNOWN'
         
         if isinstance(result, dict) and result.get('code') == '0':
             for balance_data in result.get('data', []):
@@ -753,9 +762,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # 执行交易
         trade_manager = TradeManager(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -846,10 +855,10 @@ async def get_wallet_balance(address: str) -> tuple:
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -901,12 +910,19 @@ async def get_funding_balance(address: str) -> tuple:
             - currency (str): 货币类型
     """
     try:
+        # 初始化变量
+        balance = 0.0
+        available = 0.0  # 添加初始化
+        frozen = 0.0     # 添加初始化
+        balance_source = 'OKX'
+        currency = 'UNKNOWN'
+        
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -916,12 +932,6 @@ async def get_funding_balance(address: str) -> tuple:
         # 保存资金账户余额到文件
         with open('funding_balance.txt', 'w') as file:
             json.dump(result, file, indent=4)
-        
-        # 解析余额信息
-        balance = 0.0
-        usd_value = 0.0
-        balance_source = 'OKX'
-        currency = 'UNKNOWN'
         
         if isinstance(result, dict) and result.get('code') == '0':
             for balance_data in result.get('data', []):
@@ -1125,9 +1135,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # 执行交易
         trade_manager = TradeManager(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -1218,10 +1228,10 @@ async def get_wallet_balance(address: str) -> tuple:
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -1273,12 +1283,19 @@ async def get_funding_balance(address: str) -> tuple:
             - currency (str): 货币类型
     """
     try:
+        # 初始化变量
+        balance = 0.0
+        available = 0.0  # 添加初始化
+        frozen = 0.0     # 添加初始化
+        balance_source = 'OKX'
+        currency = 'UNKNOWN'
+        
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
-            CONFIG['OKX_API']['API_KEY'],
-            CONFIG['OKX_API']['SECRET_KEY'],
-            CONFIG['OKX_API']['PASSPHRASE'],
-            False,
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['API_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['SECRET_KEY'],
+            CONFIG['OKX_API']['DEMO' if CONFIG['OKX_API']['FLAG'] == '1' else 'LIVE']['PASSPHRASE'],
+            {"x-simulated-trading": "1"} if CONFIG['OKX_API']['FLAG'] == '1' else False,  # 添加模拟交易标记
             CONFIG['OKX_API']['FLAG']
         )
         
@@ -1288,12 +1305,6 @@ async def get_funding_balance(address: str) -> tuple:
         # 保存资金账户余额到文件
         with open('funding_balance.txt', 'w') as file:
             json.dump(result, file, indent=4)
-        
-        # 解析余额信息
-        balance = 0.0
-        usd_value = 0.0
-        balance_source = 'OKX'
-        currency = 'UNKNOWN'
         
         if isinstance(result, dict) and result.get('code') == '0':
             for balance_data in result.get('data', []):
@@ -1419,6 +1430,42 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"发送菜单时出错: {e}")
         await update.message.reply_text("抱歉，显示菜单时出现错误。")
+async def get_wallet_info(address: str) -> str:
+    """
+    获取钱包信息的格式化字符串
+    """
+    # 获取交易账户余额
+    trading_balance, cash_balance, usd_value, balance_source, currency = await get_wallet_balance(address)
+    
+    # 判断是否为模拟盘
+    is_demo = CONFIG['OKX_API']['FLAG'] == "1"
+    
+    # 构建基本信息
+    info = [
+        f"💰 交易账户余额: {trading_balance} {currency} ({balance_source})",
+        f"💵 交易账户估值: ${usd_value} ({balance_source})"
+    ]
+    
+    # 只在实盘环境下显示资金账户信息
+    if not is_demo:
+        # 获取资金账户余额
+        funding_balance, available, frozen, f_balance_source, f_currency = await get_funding_balance(address)
+        
+        info.extend([
+            f"💳 资金账户余额: {funding_balance} {f_currency} ({f_balance_source})",
+            f"💵 资金账户估值: {'OKX资金账户暂不提供估值，可用交易账户参考！'}",
+            "━━━━━━━━━━━━━━",
+            f"💳 资金账户总余额: {funding_balance} {f_currency} ({f_balance_source})",
+            f"💵 可用余额: {available} {f_currency} ({f_balance_source})",
+            f"💵 冻结余额: {frozen} {f_currency} ({f_balance_source})"
+        ])
+    
+    # 添加更新时间
+    current_time = datetime.now().strftime("%H:%M:%S")
+    info.append(f"🕒 更新时间: {current_time}")
+    
+    return "\n".join(info)
+
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """处理按钮点击"""
     query = update.callback_query
@@ -1430,22 +1477,8 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if query.data == "current_wallet":
             if user_id in user_wallets:
                 wallet = user_wallets[user_id]
-                trading_balance, trading_cash_balance, trading_usd_value, trading_balance_source, trading_currency = await get_wallet_balance(wallet)
-                funding_balance, funding_available, funding_frozen, funding_source, funding_currency = await get_funding_balance(wallet)
-
-                new_text = (
-                    f"📱 当前连接的钱包信息：\n\n"
-                    f"📍 地址: {wallet}\n"
-                    f"💰 交易账户余额: {trading_balance} {trading_currency} ({trading_balance_source})\n"
-                    f"💵 交易账户估值: ${trading_usd_value} ({trading_balance_source})\n"
-                    f"💳 资金账户余额: {trading_cash_balance} {trading_currency} ({trading_balance_source})\n"
-                    f"💵 资金账户估值: OKX资金账户暂不提供估值，可用交易账户参考！\n"
-                    f"━━━━━━━━━━━━━━\n"
-                    f"💳 资金账户总余额: {funding_balance} {funding_currency} ({funding_source})\n"
-                    f"💵 可用余额: {funding_available} {funding_currency} ({funding_source})\n"
-                    f"💵 冻结余额: {funding_frozen} {funding_currency} ({funding_source})\n"
-                    f"🕒 更新时间: {datetime.now().strftime('%H:%M:%S')}"
-                )
+                wallet_info = await get_wallet_info(wallet)
+                new_text = f"📱 当前连接的钱包信息：\n\n📍 地址: {wallet}\n{wallet_info}"
                 
                 try:
                     await query.message.edit_text(

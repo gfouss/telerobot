@@ -1,12 +1,5 @@
 {
     "code": "0",
-    "data": [
-        {
-            "availBal": "0.002",
-            "bal": "0.002",
-            "ccy": "SOL",
-            "frozenBal": "0"
-        }
-    ],
+    "data": [],
     "msg": ""
 }

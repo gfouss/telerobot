@@ -12,3 +12,83 @@
         "code": "50120"
     }
 }
+{
+    "timestamp": "2025-04-29 23:02:09.987631",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "0.2"
+    },
+    "result": {
+        "msg": "This API key doesn't have permission to use this function",
+        "code": "50120"
+    }
+}
+{
+    "timestamp": "2025-04-29 23:08:56.379936",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "0.2"
+    },
+    "result": {
+        "msg": "APIKey does not match current environment.",
+        "code": "50101"
+    }
+}
+{
+    "timestamp": "2025-04-29 23:30:12.724324",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "0.8"
+    },
+    "result": {
+        "code": "1",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "",
+                "sCode": "51010",
+                "sMsg": "You can't complete this request under your current account mode. ",
+                "tag": "",
+                "ts": "1745940612619"
+            }
+        ],
+        "inTime": "1745940612618695",
+        "msg": "All operations failed",
+        "outTime": "1745940612621177"
+    }
+}
+{
+    "timestamp": "2025-04-29 23:34:10.494591",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "9"
+    },
+    "result": {
+        "code": "1",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "",
+                "sCode": "51010",
+                "sMsg": "You can't complete this request under your current account mode. ",
+                "tag": "",
+                "ts": "1745940850370"
+            }
+        ],
+        "inTime": "1745940850369688",
+        "msg": "All operations failed",
+        "outTime": "1745940850371541"
+    }
+}
