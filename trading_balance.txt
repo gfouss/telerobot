@@ -17,7 +17,7 @@
                     "crossLiab": "",
                     "disEq": "0",
                     "eq": "0.008",
-                    "eqUsd": "1.20752",
+                    "eqUsd": "1.18376",
                     "fixedBal": "0",
                     "frozenBal": "0",
                     "imr": "",
@@ -60,8 +60,8 @@
             "notionalUsdForOption": "",
             "notionalUsdForSwap": "",
             "ordFroz": "",
-            "totalEq": "1.20752",
-            "uTime": "1745426041883",
+            "totalEq": "1.18376",
+            "uTime": "1745938389342",
             "upl": ""
         }
     ],

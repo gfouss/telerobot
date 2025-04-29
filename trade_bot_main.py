@@ -1419,26 +1419,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         print(f"发送菜单时出错: {e}")
         await update.message.reply_text("抱歉，显示菜单时出现错误。")
-
-async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    处理 /test_nodes 命令，测试 RPC 节点状态
-    
-    参数:
-        update (Update): Telegram 更新对象
-        context (ContextTypes.DEFAULT_TYPE): 回调上下文
-    """
-    message = await update.message.reply_text("正在测试 RPC 节点，请稍候...")
-
-    results = []
-    for network in CONFIG['SOLANA_RPC_URLS']:
-        success, response_time, info = await test_rpc_node(network)
-        status = "✅ 正常" if success else "❌ 异常"
-        results.append(f"{network}: {status} ({response_time}ms) - {info}")
-    
-    result_text = "🔍 RPC 节点测试结果:\n\n" + "\n".join(results)
-    await message.edit_text(result_text)
-
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """处理按钮点击"""
     query = update.callback_query
@@ -1555,11 +1535,24 @@ async def main():
             .build()
         )
 
+        # 定义 Telegram Bot 的消息处理器列表
         handlers = [
+            # 处理 /start 命令的处理器
+            # 当用户发送 /start 命令时，调用 start 函数显示欢迎消息和主菜单
             CommandHandler("start", start),
-            CommandHandler("test_nodes", test_nodes),
+            
+            # 处理按钮点击事件的处理器
+            # 当用户点击内联键盘按钮时，调用 handle_button 函数处理相应操作
             CallbackQueryHandler(handle_button),
+            
+            # 处理普通文本消息的处理器（不包括命令）
+            # filters.TEXT 表示只处理文本消息
+            # ~filters.COMMAND 表示排除命令消息
+            # 用于处理用户输入的钱包地址和交易数量等信息
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
+            
+            # 处理所有类型消息的处理器
+            # 用于调试目的，可以捕获并记录所有消息
             MessageHandler(filters.ALL, debug_handler)
         ]
         
@@ -1591,8 +1584,19 @@ async def main():
         print('请检查配置是否正确')
 
 if __name__ == '__main__':
+    """
+    主程序入口点
+    
+    功能：
+        - 启动 Telegram 机器人
+        - 使用 asyncio.run() 运行异步主函数
+        - 处理键盘中断信号（Ctrl+C）优雅退出
+    
+    异常处理：
+        - 捕获 KeyboardInterrupt 异常，实现优雅退出
+        - 在退出时打印提示信息
+    """
     try:
-        asyncio.run(main())
+        asyncio.run(main())  # 运行异步主函数
     except KeyboardInterrupt:
-        print("\n收到退出信号，机器人已停止")
-
+        print("\n收到退出信号，机器人已停止")  # 处理 Ctrl+C 退出信号

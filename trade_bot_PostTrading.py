@@ -13,14 +13,30 @@ logger = logging.getLogger(__name__)
 # 添加必要的导入
 from datetime import datetime
 
+# 定义交易管理器类，通过封装底层的API，提供更高级别的交易操作
 class TradeManager:
     def __init__(self, api_key, secret_key, passphrase, flag="1"):
-        """初始化交易管理器"""
+        """
+        初始化交易管理器
+        
+        参数:
+            api_key (str): OKX API密钥，用于身份验证
+            secret_key (str): OKX API密钥对应的秘钥
+            passphrase (str): API密码短语，用于进一步验证
+            flag (str): 交易环境标志
+                       "0": 实盘交易
+                       "1": 模拟交易（默认）
+        
+        功能:
+            - 初始化OKX交易API客户端
+            - 设置API访问凭证
+            - 配置交易环境（实盘/模拟）
+        """
         self.tradeAPI = TradeAPI(
             api_key,
             secret_key,
             passphrase,
-            False,
+            False,  # 是否使用WebSocket，这里设置为False表示使用REST API
             flag
         )
     
