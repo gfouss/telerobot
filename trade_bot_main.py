@@ -69,7 +69,15 @@ MAIN_MENU_MARKUP = InlineKeyboardMarkup([
 
 # 工具函数
 def is_valid_solana_address(address: str) -> bool:
-    """验证 Solana 钱包地址"""
+    """
+    验证 Solana 钱包地址是否有效
+    
+    参数:
+        address (str): 待验证的 Solana 钱包地址
+        
+    返回:
+        bool: 如果地址有效返回 True，否则返回 False
+    """
     try:
         decoded = base58.b58decode(address)
         return len(decoded) == 32
@@ -77,7 +85,20 @@ def is_valid_solana_address(address: str) -> bool:
         return False
 
 async def get_wallet_balance(address: str) -> tuple:
-    """获取钱包余额"""
+    """
+    使用OKX API 获取指定钱包地址的余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - trading_balance (float): 交易账户余额
+            - cash_balance (float): 现金余额
+            - usd_value (float): 美元估值
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
@@ -88,7 +109,7 @@ async def get_wallet_balance(address: str) -> tuple:
             CONFIG['OKX_API']['FLAG']
         )
         
-        # 获取账户余额
+        # 获取交易账户余额
         result = accountAPI.get_account_balance()
         
         # 保存账户余额到文件
@@ -121,7 +142,20 @@ async def get_wallet_balance(address: str) -> tuple:
 
 
 async def get_funding_balance(address: str) -> tuple:
-    """获取资金账户余额"""
+    """
+    获取资金账户余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - balance (float): 总余额
+            - available (float): 可用余额
+            - frozen (float): 冻结余额
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
@@ -161,7 +195,12 @@ async def get_funding_balance(address: str) -> tuple:
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
 async def get_sol_price_okx() -> float:
-    """从 OKX 获取 SOL 当前价格"""
+    """
+    从 OKX 交易所获取 SOL 当前价格
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         timeout = aiohttp.ClientTimeout(total=5)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -190,7 +229,12 @@ async def get_sol_price_okx() -> float:
         return 0.0
 
 async def get_sol_price() -> float:
-    """获取 SOL 当前价格"""
+    """
+    获取 SOL 当前价格的封装函数
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         price = await get_sol_price_okx()
         return price if price > 0 else 0.0
@@ -200,7 +244,12 @@ async def get_sol_price() -> float:
 
 # 钱包存储相关函数
 def load_wallets():
-    """从文件加载钱包数据"""
+    """
+    从保存的文件加载用户钱包数据
+    
+    返回:
+        dict: 用户ID和钱包地址的映射字典，如果文件不存在返回空字典
+    """
     try:
         with open(CONFIG['WALLET_FILE'], 'r') as f:
             wallets_data = json.load(f)
@@ -209,7 +258,12 @@ def load_wallets():
         return {}
 
 def save_wallets(wallets):
-    """保存钱包数据到文件"""
+    """
+    保存用户钱包数据到本地文件
+    
+    参数:
+        wallets (dict): 用户ID和钱包地址的映射字典
+    """
     wallets_data = {str(user_id): address for user_id, address in wallets.items()}
     with open(CONFIG['WALLET_FILE'], 'w') as f:
         json.dump(wallets_data, f)
@@ -219,7 +273,13 @@ user_wallets = load_wallets()
 
 # Telegram 命令处理函数
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /start 命令"""
+    """
+    处理 Telegram /start 命令
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     user = update.effective_user
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的 /start 命令")
     try:
@@ -245,7 +305,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("抱歉，显示菜单时出现错误。")
 
 async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /test_nodes 命令"""
+    """
+    处理 /test_nodes 命令，测试 RPC 节点状态
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     message = await update.message.reply_text("正在测试 RPC 节点，请稍候...")
 
     results = []
@@ -258,7 +324,18 @@ async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await message.edit_text(result_text)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理用户消息"""
+    """
+    处理用户消息的主函数
+    
+    功能:
+        - 处理钱包地址验证
+        - 处理交易数量输入
+        - 执行买入/卖出操作
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     user = update.effective_user
     text = update.message.text
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的消息: {text}")
@@ -364,7 +441,15 @@ MAIN_MENU_MARKUP = InlineKeyboardMarkup([
 
 # 工具函数
 def is_valid_solana_address(address: str) -> bool:
-    """验证 Solana 钱包地址"""
+    """
+    验证 Solana 钱包地址是否有效
+    
+    参数:
+        address (str): 待验证的 Solana 钱包地址
+        
+    返回:
+        bool: 如果地址有效返回 True，否则返回 False
+    """
     try:
         decoded = base58.b58decode(address)
         return len(decoded) == 32
@@ -372,7 +457,20 @@ def is_valid_solana_address(address: str) -> bool:
         return False
 
 async def get_wallet_balance(address: str) -> tuple:
-    """获取钱包余额"""
+    """
+    获取指定钱包地址的余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - trading_balance (float): 交易账户余额
+            - cash_balance (float): 现金余额
+            - usd_value (float): 美元估值
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
@@ -416,7 +514,20 @@ async def get_wallet_balance(address: str) -> tuple:
 
 
 async def get_funding_balance(address: str) -> tuple:
-    """获取资金账户余额"""
+    """
+    获取资金账户余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - balance (float): 总余额
+            - available (float): 可用余额
+            - frozen (float): 冻结余额
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
@@ -456,7 +567,12 @@ async def get_funding_balance(address: str) -> tuple:
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
 async def get_sol_price_okx() -> float:
-    """从 OKX 获取 SOL 当前价格"""
+    """
+    从 OKX 交易所获取 SOL 当前价格
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         timeout = aiohttp.ClientTimeout(total=5)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -485,7 +601,12 @@ async def get_sol_price_okx() -> float:
         return 0.0
 
 async def get_sol_price() -> float:
-    """获取 SOL 当前价格"""
+    """
+    获取 SOL 当前价格的封装函数
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         price = await get_sol_price_okx()
         return price if price > 0 else 0.0
@@ -495,7 +616,12 @@ async def get_sol_price() -> float:
 
 # 钱包存储相关函数
 def load_wallets():
-    """从文件加载钱包数据"""
+    """
+    从文件加载用户钱包数据
+    
+    返回:
+        dict: 用户ID和钱包地址的映射字典，如果文件不存在返回空字典
+    """
     try:
         with open(CONFIG['WALLET_FILE'], 'r') as f:
             wallets_data = json.load(f)
@@ -504,7 +630,12 @@ def load_wallets():
         return {}
 
 def save_wallets(wallets):
-    """保存钱包数据到文件"""
+    """
+    保存用户钱包数据到文件
+    
+    参数:
+        wallets (dict): 用户ID和钱包地址的映射字典
+    """
     wallets_data = {str(user_id): address for user_id, address in wallets.items()}
     with open(CONFIG['WALLET_FILE'], 'w') as f:
         json.dump(wallets_data, f)
@@ -514,7 +645,13 @@ user_wallets = load_wallets()
 
 # Telegram 命令处理函数
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /start 命令"""
+    """
+    处理 Telegram /start 命令
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     user = update.effective_user
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的 /start 命令")
     try:
@@ -540,7 +677,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("抱歉，显示菜单时出现错误。")
 
 async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /test_nodes 命令"""
+    """
+    处理 /test_nodes 命令，测试 RPC 节点状态
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     message = await update.message.reply_text("正在测试 RPC 节点，请稍候...")
 
     results = []
@@ -553,7 +696,18 @@ async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await message.edit_text(result_text)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理用户消息"""
+    """
+    处理用户消息的主函数
+    
+    功能:
+        - 处理钱包地址验证
+        - 处理交易数量输入
+        - 执行买入/卖出操作
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     user = update.effective_user
     text = update.message.text
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的消息: {text}")
@@ -659,7 +813,15 @@ MAIN_MENU_MARKUP = InlineKeyboardMarkup([
 
 # 工具函数
 def is_valid_solana_address(address: str) -> bool:
-    """验证 Solana 钱包地址"""
+    """
+    验证 Solana 钱包地址是否有效
+    
+    参数:
+        address (str): 待验证的 Solana 钱包地址
+        
+    返回:
+        bool: 如果地址有效返回 True，否则返回 False
+    """
     try:
         decoded = base58.b58decode(address)
         return len(decoded) == 32
@@ -667,7 +829,20 @@ def is_valid_solana_address(address: str) -> bool:
         return False
 
 async def get_wallet_balance(address: str) -> tuple:
-    """获取钱包余额"""
+    """
+    获取指定钱包地址的余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - trading_balance (float): 交易账户余额
+            - cash_balance (float): 现金余额
+            - usd_value (float): 美元估值
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
@@ -711,7 +886,20 @@ async def get_wallet_balance(address: str) -> tuple:
 
 
 async def get_funding_balance(address: str) -> tuple:
-    """获取资金账户余额"""
+    """
+    获取资金账户余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - balance (float): 总余额
+            - available (float): 可用余额
+            - frozen (float): 冻结余额
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
@@ -751,7 +939,12 @@ async def get_funding_balance(address: str) -> tuple:
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
 async def get_sol_price_okx() -> float:
-    """从 OKX 获取 SOL 当前价格"""
+    """
+    从 OKX 交易所获取 SOL 当前价格
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         timeout = aiohttp.ClientTimeout(total=5)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -780,7 +973,12 @@ async def get_sol_price_okx() -> float:
         return 0.0
 
 async def get_sol_price() -> float:
-    """获取 SOL 当前价格"""
+    """
+    获取 SOL 当前价格的封装函数
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         price = await get_sol_price_okx()
         return price if price > 0 else 0.0
@@ -790,7 +988,12 @@ async def get_sol_price() -> float:
 
 # 钱包存储相关函数
 def load_wallets():
-    """从文件加载钱包数据"""
+    """
+    从文件加载用户钱包数据
+    
+    返回:
+        dict: 用户ID和钱包地址的映射字典，如果文件不存在返回空字典
+    """
     try:
         with open(CONFIG['WALLET_FILE'], 'r') as f:
             wallets_data = json.load(f)
@@ -799,7 +1002,12 @@ def load_wallets():
         return {}
 
 def save_wallets(wallets):
-    """保存钱包数据到文件"""
+    """
+    保存用户钱包数据到文件
+    
+    参数:
+        wallets (dict): 用户ID和钱包地址的映射字典
+    """
     wallets_data = {str(user_id): address for user_id, address in wallets.items()}
     with open(CONFIG['WALLET_FILE'], 'w') as f:
         json.dump(wallets_data, f)
@@ -809,7 +1017,13 @@ user_wallets = load_wallets()
 
 # Telegram 命令处理函数
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /start 命令"""
+    """
+    处理 Telegram /start 命令
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     user = update.effective_user
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的 /start 命令")
     try:
@@ -835,7 +1049,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("抱歉，显示菜单时出现错误。")
 
 async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /test_nodes 命令"""
+    """
+    处理 /test_nodes 命令，测试 RPC 节点状态
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     message = await update.message.reply_text("正在测试 RPC 节点，请稍候...")
 
     results = []
@@ -848,7 +1068,18 @@ async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await message.edit_text(result_text)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理用户消息"""
+    """
+    处理用户消息的主函数
+    
+    功能:
+        - 处理钱包地址验证
+        - 处理交易数量输入
+        - 执行买入/卖出操作
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     user = update.effective_user
     text = update.message.text
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的消息: {text}")
@@ -954,7 +1185,15 @@ MAIN_MENU_MARKUP = InlineKeyboardMarkup([
 
 # 工具函数
 def is_valid_solana_address(address: str) -> bool:
-    """验证 Solana 钱包地址"""
+    """
+    验证 Solana 钱包地址是否有效
+    
+    参数:
+        address (str): 待验证的 Solana 钱包地址
+        
+    返回:
+        bool: 如果地址有效返回 True，否则返回 False
+    """
     try:
         decoded = base58.b58decode(address)
         return len(decoded) == 32
@@ -962,7 +1201,20 @@ def is_valid_solana_address(address: str) -> bool:
         return False
 
 async def get_wallet_balance(address: str) -> tuple:
-    """获取钱包余额"""
+    """
+    获取指定钱包地址的余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - trading_balance (float): 交易账户余额
+            - cash_balance (float): 现金余额
+            - usd_value (float): 美元估值
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX API
         accountAPI = Account.AccountAPI(
@@ -1006,7 +1258,20 @@ async def get_wallet_balance(address: str) -> tuple:
 
 
 async def get_funding_balance(address: str) -> tuple:
-    """获取资金账户余额"""
+    """
+    获取资金账户余额信息
+    
+    参数:
+        address (str): Solana 钱包地址
+        
+    返回:
+        tuple: 包含以下信息的元组:
+            - balance (float): 总余额
+            - available (float): 可用余额
+            - frozen (float): 冻结余额
+            - balance_source (str): 余额来源
+            - currency (str): 货币类型
+    """
     try:
         # 初始化OKX Funding API
         fundingAPI = Funding.FundingAPI(
@@ -1046,7 +1311,12 @@ async def get_funding_balance(address: str) -> tuple:
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
 async def get_sol_price_okx() -> float:
-    """从 OKX 获取 SOL 当前价格"""
+    """
+    从 OKX 交易所获取 SOL 当前价格
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         timeout = aiohttp.ClientTimeout(total=5)
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -1075,7 +1345,12 @@ async def get_sol_price_okx() -> float:
         return 0.0
 
 async def get_sol_price() -> float:
-    """获取 SOL 当前价格"""
+    """
+    获取 SOL 当前价格的封装函数
+    
+    返回:
+        float: SOL 当前价格，如果获取失败返回 0.0
+    """
     try:
         price = await get_sol_price_okx()
         return price if price > 0 else 0.0
@@ -1085,7 +1360,12 @@ async def get_sol_price() -> float:
 
 # 钱包存储相关函数
 def load_wallets():
-    """从文件加载钱包数据"""
+    """
+    从文件加载用户钱包数据
+    
+    返回:
+        dict: 用户ID和钱包地址的映射字典，如果文件不存在返回空字典
+    """
     try:
         with open(CONFIG['WALLET_FILE'], 'r') as f:
             wallets_data = json.load(f)
@@ -1094,7 +1374,12 @@ def load_wallets():
         return {}
 
 def save_wallets(wallets):
-    """保存钱包数据到文件"""
+    """
+    保存用户钱包数据到文件
+    
+    参数:
+        wallets (dict): 用户ID和钱包地址的映射字典
+    """
     wallets_data = {str(user_id): address for user_id, address in wallets.items()}
     with open(CONFIG['WALLET_FILE'], 'w') as f:
         json.dump(wallets_data, f)
@@ -1104,7 +1389,13 @@ user_wallets = load_wallets()
 
 # Telegram 命令处理函数
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /start 命令"""
+    """
+    处理 Telegram /start 命令
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     user = update.effective_user
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的 /start 命令")
     try:
@@ -1130,7 +1421,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("抱歉，显示菜单时出现错误。")
 
 async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理 /test_nodes 命令"""
+    """
+    处理 /test_nodes 命令，测试 RPC 节点状态
+    
+    参数:
+        update (Update): Telegram 更新对象
+        context (ContextTypes.DEFAULT_TYPE): 回调上下文
+    """
     message = await update.message.reply_text("正在测试 RPC 节点，请稍候...")
 
     results = []
