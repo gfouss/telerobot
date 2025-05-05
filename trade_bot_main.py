@@ -575,54 +575,6 @@ async def get_funding_balance(address: str) -> tuple:
         logger.error(f"获取OKX资金账户信息错误: {e}")
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
-async def get_sol_price_okx() -> float:
-    """
-    从 OKX 交易所获取 SOL 当前价格
-    
-    返回:
-        float: SOL 当前价格，如果获取失败返回 0.0
-    """
-    try:
-        timeout = aiohttp.ClientTimeout(total=5)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{CONFIG['OKX_API']['BASE_URL']}/api/v5/market/ticker"
-            params = {'instId': 'SOL-USDT-SWAP'}
-            
-            async with session.get(url, params=params) as response:
-                if response.status != 200:
-                    logger.error(f"OKX API 错误: 状态码 {response.status}")
-                    return 0.0
-                
-                data = await response.json()
-                if data.get('code') == '0' and data.get('data'):
-                    ticker_data = data['data'][0]
-                    mark_price = float(ticker_data.get('markPx', 0))
-                    last_price = float(ticker_data.get('last', 0))
-                    if mark_price == 0 and last_price == 0:
-                        logger.error("OKX API 返回价格为0")
-                        return 0.0
-                    return mark_price or last_price
-                
-                logger.error(f"OKX API 响应格式错误: {data}")
-                return 0.0
-    except Exception as e:
-        logger.error(f"获取 OKX 价格错误: {str(e)}")
-        return 0.0
-
-async def get_sol_price() -> float:
-    """
-    获取 SOL 当前价格的封装函数
-    
-    返回:
-        float: SOL 当前价格，如果获取失败返回 0.0
-    """
-    try:
-        price = await get_sol_price_okx()
-        return price if price > 0 else 0.0
-    except Exception as e:
-        print(f"获取价格错误: {e}")
-        return 0.0
-
 # 钱包存储相关函数
 def load_wallets():
     """
@@ -948,53 +900,6 @@ async def get_funding_balance(address: str) -> tuple:
         logger.error(f"获取OKX资金账户信息错误: {e}")
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
 
-async def get_sol_price_okx() -> float:
-    """
-    从 OKX 交易所获取 SOL 当前价格
-    
-    返回:
-        float: SOL 当前价格，如果获取失败返回 0.0
-    """
-    try:
-        timeout = aiohttp.ClientTimeout(total=5)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{CONFIG['OKX_API']['BASE_URL']}/api/v5/market/ticker"
-            params = {'instId': 'SOL-USDT-SWAP'}
-            
-            async with session.get(url, params=params) as response:
-                if response.status != 200:
-                    logger.error(f"OKX API 错误: 状态码 {response.status}")
-                    return 0.0
-                
-                data = await response.json()
-                if data.get('code') == '0' and data.get('data'):
-                    ticker_data = data['data'][0]
-                    mark_price = float(ticker_data.get('markPx', 0))
-                    last_price = float(ticker_data.get('last', 0))
-                    if mark_price == 0 and last_price == 0:
-                        logger.error("OKX API 返回价格为0")
-                        return 0.0
-                    return mark_price or last_price
-                
-                logger.error(f"OKX API 响应格式错误: {data}")
-                return 0.0
-    except Exception as e:
-        logger.error(f"获取 OKX 价格错误: {str(e)}")
-        return 0.0
-
-async def get_sol_price() -> float:
-    """
-    获取 SOL 当前价格的封装函数
-    
-    返回:
-        float: SOL 当前价格，如果获取失败返回 0.0
-    """
-    try:
-        price = await get_sol_price_okx()
-        return price if price > 0 else 0.0
-    except Exception as e:
-        print(f"获取价格错误: {e}")
-        return 0.0
 
 # 钱包存储相关函数
 def load_wallets():
@@ -1320,55 +1225,6 @@ async def get_funding_balance(address: str) -> tuple:
     except Exception as e:
         logger.error(f"获取OKX资金账户信息错误: {e}")
         return (0.0, 0.0, 0.0, 'Unknown', 'UNKNOWN')
-
-async def get_sol_price_okx() -> float:
-    """
-    从 OKX 交易所获取 SOL 当前价格
-    
-    返回:
-        float: SOL 当前价格，如果获取失败返回 0.0
-    """
-    try:
-        timeout = aiohttp.ClientTimeout(total=5)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            url = f"{CONFIG['OKX_API']['BASE_URL']}/api/v5/market/ticker"
-            params = {'instId': 'SOL-USDT-SWAP'}
-            
-            async with session.get(url, params=params) as response:
-                if response.status != 200:
-                    logger.error(f"OKX API 错误: 状态码 {response.status}")
-                    return 0.0
-                
-                data = await response.json()
-                if data.get('code') == '0' and data.get('data'):
-                    ticker_data = data['data'][0]
-                    mark_price = float(ticker_data.get('markPx', 0))
-                    last_price = float(ticker_data.get('last', 0))
-                    if mark_price == 0 and last_price == 0:
-                        logger.error("OKX API 返回价格为0")
-                        return 0.0
-                    return mark_price or last_price
-                
-                logger.error(f"OKX API 响应格式错误: {data}")
-                return 0.0
-    except Exception as e:
-        logger.error(f"获取 OKX 价格错误: {str(e)}")
-        return 0.0
-
-async def get_sol_price() -> float:
-    """
-    获取 SOL 当前价格的封装函数
-    
-    返回:
-        float: SOL 当前价格，如果获取失败返回 0.0
-    """
-    try:
-        price = await get_sol_price_okx()
-        return price if price > 0 else 0.0
-    except Exception as e:
-        print(f"获取价格错误: {e}")
-        return 0.0
-
 # 钱包存储相关函数
 def load_wallets():
     """

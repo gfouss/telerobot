@@ -92,3 +92,55 @@
         "outTime": "1745940850371541"
     }
 }
+{
+    "timestamp": "2025-05-05 17:45:21.576416",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "0.5"
+    },
+    "result": {
+        "code": "1",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "",
+                "sCode": "51010",
+                "sMsg": "You can't complete this request under your current account mode. ",
+                "tag": "",
+                "ts": "1746438321478"
+            }
+        ],
+        "inTime": "1746438321477299",
+        "msg": "All operations failed",
+        "outTime": "1746438321479796"
+    }
+}
+{
+    "timestamp": "2025-05-05 17:50:37.628916",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "3"
+    },
+    "result": {
+        "code": "1",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "",
+                "sCode": "51010",
+                "sMsg": "You can't complete this request under your current account mode. ",
+                "tag": "",
+                "ts": "1746438637529"
+            }
+        ],
+        "inTime": "1746438637528090",
+        "msg": "All operations failed",
+        "outTime": "1746438637530622"
+    }
+}
