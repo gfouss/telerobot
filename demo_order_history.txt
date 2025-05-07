@@ -128,3 +128,289 @@
         "outTime": "1746457122608363"
     }
 }
+{
+    "timestamp": "2025-05-07 22:33:17.210760",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "0.2"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487255729049227264",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746628397097"
+            }
+        ],
+        "inTime": "1746628397096871",
+        "msg": "",
+        "outTime": "1746628397100341"
+    }
+}
+{
+    "timestamp": "2025-05-07 22:33:50.524813",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "100"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487256847082901504",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746628430417"
+            }
+        ],
+        "inTime": "1746628430416156",
+        "msg": "",
+        "outTime": "1746628430419135"
+    }
+}
+{
+    "timestamp": "2025-05-07 22:37:10.669545",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "sell",
+        "ordType": "market",
+        "sz": "5"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487263562767585280",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746628630560"
+            }
+        ],
+        "inTime": "1746628630560061",
+        "msg": "",
+        "outTime": "1746628630563025"
+    }
+}
+{
+    "timestamp": "2025-05-07 22:37:30.451862",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "sell",
+        "ordType": "market",
+        "sz": "2"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487264225635389440",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746628650315"
+            }
+        ],
+        "inTime": "1746628650314384",
+        "msg": "",
+        "outTime": "1746628650317390"
+    }
+}
+{
+    "timestamp": "2025-05-07 22:49:24.083951",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "1000"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487288172292657152",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746629363981"
+            }
+        ],
+        "inTime": "1746629363980598",
+        "msg": "",
+        "outTime": "1746629363984020"
+    }
+}
+{
+    "timestamp": "2025-05-07 23:03:14.903188",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "500"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487316048811446272",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746630194766"
+            }
+        ],
+        "inTime": "1746630194765548",
+        "msg": "",
+        "outTime": "1746630194768567"
+    }
+}
+{
+    "timestamp": "2025-05-07 23:17:40.618487",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "100"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487345098225405952",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746631060506"
+            }
+        ],
+        "inTime": "1746631060505961",
+        "msg": "",
+        "outTime": "1746631060509125"
+    }
+}
+{
+    "timestamp": "2025-05-07 23:40:37.001204",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "10"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487391281203433472",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746632436866"
+            }
+        ],
+        "inTime": "1746632436865798",
+        "msg": "",
+        "outTime": "1746632436868899"
+    }
+}
+{
+    "timestamp": "2025-05-07 23:41:13.285796",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "0.5"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487392499732631552",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746632473181"
+            }
+        ],
+        "inTime": "1746632473180112",
+        "msg": "",
+        "outTime": "1746632473183237"
+    }
+}
+{
+    "timestamp": "2025-05-07 23:42:35.247987",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "1000"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487395250088759296",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746632555148"
+            }
+        ],
+        "inTime": "1746632555147846",
+        "msg": "",
+        "outTime": "1746632555150956"
+    }
+}
+{
+    "timestamp": "2025-05-07 23:43:06.118323",
+    "order": {
+        "instId": "SOL-USDT",
+        "tdMode": "cash",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "10"
+    },
+    "result": {
+        "code": "0",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "2487396285846966272",
+                "sCode": "0",
+                "sMsg": "Order placed",
+                "tag": "",
+                "ts": "1746632586016"
+            }
+        ],
+        "inTime": "1746632586014751",
+        "msg": "",
+        "outTime": "1746632586018193"
+    }
+}

@@ -315,6 +315,7 @@ user_wallets = load_wallets()
 
 # Telegram 命令处理函数
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     """
     处理 Telegram /start 命令
     
@@ -346,25 +347,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"发送菜单时出错: {e}")
         await update.message.reply_text("抱歉，显示菜单时出现错误。")
 
-async def test_nodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    处理 /test_nodes 命令，测试 RPC 节点状态
-    
-    参数:
-        update (Update): Telegram 更新对象
-        context (ContextTypes.DEFAULT_TYPE): 回调上下文
-    """
-    message = await update.message.reply_text("正在测试 RPC 节点，请稍候...")
-
-    results = []
-    for network in CONFIG['SOLANA_RPC_URLS']:
-        success, response_time, info = await test_rpc_node(network)
-        status = "✅ 正常" if success else "❌ 异常"
-        results.append(f"{network}: {status} ({response_time}ms) - {info}")
-    
-    result_text = "🔍 RPC 节点测试结果:\n\n" + "\n".join(results)
-    await message.edit_text(result_text)
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     处理用户消息的主函数
@@ -373,32 +355,60 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的消息: {text}")
     
-    # 首先检查是否是钱包地址
-    if is_valid_solana_address(text):
-        msg = await update.message.reply_text("正在验证钱包地址...")
+    # 处理等待查询余额状态
+    if context.user_data.get('state') == 'waiting_for_crypto_balance':
+        msg = await update.message.reply_text("正在查询余额...")
         
         try:
-            trading_balance, cash_balance, usd_value, balance_source, currency = await get_wallet_balance(text, 'SOL')
-            user_wallets[user.id] = text
-            save_wallets(user_wallets)
+            # 获取用户钱包地址
+            wallet_address = user_wallets.get(user.id)
+            if not wallet_address:
+                await msg.edit_text(
+                    "❌ 请先连接钱包！",
+                    reply_markup=MAIN_MENU_MARKUP
+                )
+                context.user_data['state'] = None
+                return
             
+            # 查询余额信息（同时查询交易账户和资金账户）
+            trading_result = await get_wallet_balance(wallet_address, text.upper())
+            funding_result = await get_funding_balance(wallet_address, text.upper())
+            
+            trading_balance, cash_balance, usd_value, balance_source, currency = trading_result
+            funding_balance, funding_available, funding_frozen, _, _ = funding_result
+            
+            # 获取当前价格
+            current_price = await get_sol_price()
+            price_info = f"\n💲 当前价格: ${current_price:.2f}" if current_price > 0 else ""
+            
+            trading_mode = "模拟盘" if CONFIG['OKX_API']['FLAG'] == '1' else "实盘"
             await msg.edit_text(
-                f"🎉 钱包连接成功！\n\n"
-                f"📍 地址: {text}\n"
-                f"💰 可用余额: {trading_balance} {currency}\n"
-                f"💵 总余额: {cash_balance} {currency}\n"
-                f"💎 估值: ${usd_value} USD\n\n"
-                "现在你可以开始交易了！",
+                f"📊 {text.upper()} 钱包信息 ({trading_mode})：\n\n"
+                f"📍 地址: {wallet_address}\n"
+                f"💰 交易账户:\n"
+                f"  • 可用余额: {trading_balance} {currency}\n"
+                f"  • 总余额: {cash_balance} {currency}\n"
+                f"  • 估值: ${usd_value} USD\n\n"
+                f"💵 资金账户:\n"
+                f"  • 可用余额: {funding_available} {currency}\n"
+                f"  • 冻结金额: {funding_frozen} {currency}\n"
+                f"  • 总余额: {funding_balance} {currency}{price_info}\n\n"
+                f"🏦 数据来源: {balance_source}",
                 reply_markup=MAIN_MENU_MARKUP
             )
+            
         except Exception as e:
-            print(f"钱包连接错误: {e}")
+            logger.error(f"查询钱包余额错误: {e}")
             await msg.edit_text(
-                "❌ 连接失败！\n"
-                "请检查钱包地址是否正确，或稍后重试。"
+                f"❌ 查询余额失败！\n"
+                "请检查币种代码是否正确，或稍后重试。",
+                reply_markup=MAIN_MENU_MARKUP
             )
+        
+        # 重置用户状态
+        context.user_data['state'] = None
         return
-    
+        
     # 处理等待交易币种输入状态
     if context.user_data.get('state') == 'waiting_for_trade_pair':
         # 解析用户输入的交易对
@@ -426,7 +436,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 更新状态为等待输入数量
         context.user_data['state'] = 'waiting_for_amount'
         return
-        
+
     # 处理等待输入数量状态
     if context.user_data.get('state') == 'waiting_for_amount':
         try:
@@ -444,6 +454,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"❌ 数量太大\n最大交易数量为：{CONFIG['TRADE']['MAX_AMOUNT']}"
                 )
                 return
+            
+            # 获取保存的交易对信息
+            inst_id = context.user_data.get('trade_pair')
+            if not inst_id:
+                await update.message.reply_text(
+                    "❌ 交易对信息丢失，请重新开始交易流程",
+                    reply_markup=MAIN_MENU_MARKUP
+                )
+                context.user_data['state'] = None
+                return
+                
+            # 获取交易方向
+            trade_direction = context.user_data.get('trade_action', 'buy')
             
             # 创建交易管理器
             trading_mode = "模拟盘" if CONFIG['OKX_API']['FLAG'] == '1' else "实盘"
@@ -497,7 +520,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"数值转换错误: {ve}")
         except decimal.InvalidOperation as de:
             await update.message.reply_text(
-                "❌ 输入的数字格式无效\n"
+                "❌ 输入的数字格式无效01\n"
                 "请使用正确的数字格式，例如：0.1、1.5、2 等"
             )
             logger.error(f"Decimal 转换错误: {de}")
@@ -519,7 +542,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             amount = Decimal(cleaned_text)
         except decimal.InvalidOperation:
             await update.message.reply_text(
-                "❌ 输入的数字格式无效\n"
+                "❌ 输入的数字格式无效02\n"
                 "请使用正确的数字格式，例如：\n"
                 "• 0.1\n"
                 "• 1.5\n"
@@ -553,26 +576,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 检查账户余额
         trading_balance, cash_balance, usd_value, _, _ = await get_wallet_balance(user_wallets.get(user.id, ''))
         
-        # 如果是买入，检查USDT余额；如果是卖出，检查SOL余额
+        # 从交易对中获取币种信息
+        inst_id = context.user_data.get('trade_pair', CONFIG['TRADE']['DEFAULT_INST_ID'])
+        base_currency = inst_id.split('-')[0]  # 基础货币（要买入/卖出的币种）
+        quote_currency = inst_id.split('-')[1]  # 计价货币
+        
+        # 根据交易方向检查相应的余额
         if trade_action == 'buy':
-            current_price = await get_sol_price()
-            if current_price <= 0:
-                await update.message.reply_text("❌ 无法获取当前价格，请稍后重试")
-                return
-            required_balance = float(amount) * current_price
-            if required_balance > cash_balance:
+            # 买入时检查计价货币（如USDT）余额
+            balance_result = await get_wallet_balance(user_wallets.get(user.id, ''), quote_currency)
+            available_balance = balance_result[0]  # 获取可用余额
+            if available_balance < amount:
                 await update.message.reply_text(
-                    f"❌ 余额不足\n"
-                    f"需要: {required_balance:.2f} USDT\n"
-                    f"可用: {cash_balance:.2f} USDT"
+                    f"❌ {quote_currency}余额不足\n"
+                    f"当前可用余额: {available_balance} {quote_currency}\n"
+                    f"需要金额: {amount} {quote_currency}"
                 )
                 return
-        elif trade_action == 'sell':
-            if float(amount) > trading_balance:
+        else:
+            # 卖出时检查基础货币（如SOL）余额
+            balance_result = await get_wallet_balance(user_wallets.get(user.id, ''), base_currency)
+            available_balance = balance_result[0]  # 获取可用余额
+            if available_balance < amount:
                 await update.message.reply_text(
-                    f"❌ SOL余额不足\n"
-                    f"需要: {amount} SOL\n"
-                    f"可用: {trading_balance} SOL"
+                    f"❌ {base_currency}余额不足\n"
+                    f"当前可用余额: {available_balance} {base_currency}\n"
+                    f"需要金额: {amount} {base_currency}"
                 )
                 return
         
@@ -699,14 +728,35 @@ async def check_price_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """处理按钮点击"""
+    """处理按钮回调的函数"""
     query = update.callback_query
     user_id = query.from_user.id
     
     try:
-        await query.answer()
+        await query.answer()  # 立即响应回调查询
         
-        if query.data == "current_wallet":
+        if query.data == "buy":
+            # 设置用户状态为等待输入交易对
+            context.user_data['state'] = 'waiting_for_trade_pair'
+            context.user_data['trade_action'] = 'buy'  # 记录交易动作为买入
+            await query.message.reply_text(
+                "请输入要交易的币种对：\n"
+                "格式：BASE-QUOTE\n"
+                "例如：USDT-SOL（用USDT购买SOL）",
+                reply_markup=MAIN_MENU_MARKUP
+            )
+            
+        elif query.data == "sell":
+            # 设置用户状态为等待输入交易对
+            context.user_data['state'] = 'waiting_for_trade_pair'
+            context.user_data['trade_action'] = 'sell'  # 记录交易动作为卖出
+            await query.message.reply_text(
+                "请输入要交易的币种对：\n"
+                "格式：BASE-QUOTE\n"
+                "例如：SOL-USDT（卖出SOL换取USDT）",
+                reply_markup=MAIN_MENU_MARKUP
+            )
+        elif query.data == "current_wallet":
             if user_id in user_wallets:
                 wallet = user_wallets[user_id]
                 await query.message.reply_text(
@@ -731,27 +781,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "2. 或者使用以下命令：\n"
                 "/connect <钱包地址>"
             )
-        elif query.data == "buy":
-            # 设置用户状态为买入
-            context.user_data['trade_action'] = 'buy'
-            await query.message.reply_text(
-                "💰 请输入要购买的 SOL 数量：\n\n"
-                f"• 最小数量：{CONFIG['TRADE']['MIN_AMOUNT']} SOL\n"
-                f"• 最大数量：{CONFIG['TRADE']['MAX_AMOUNT']} SOL\n"
-                "• 使用市价单执行\n\n"
-                "请直接输入数字金额："
-            )
-            
-        elif query.data == "sell":
-            # 设置用户状态为卖出
-            context.user_data['trade_action'] = 'sell'
-            await query.message.reply_text(
-                "💱 请输入要出售的 SOL 数量：\n\n"
-                f"• 最小数量：{CONFIG['TRADE']['MIN_AMOUNT']} SOL\n"
-                f"• 最大数量：{CONFIG['TRADE']['MAX_AMOUNT']} SOL\n"
-                "• 使用市价单执行\n\n"
-                "请直接输入数字金额："
-            )
+
         elif query.data == "check_price":
             await check_price_callback(update, context)
         elif query.data == "settings":
