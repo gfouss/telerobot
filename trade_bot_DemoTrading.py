@@ -38,7 +38,7 @@ class DemoTradeManager:
         下单函数
         
         参数:
-        - inst_id: 产品ID，例如："SOL-USDT-SWAP"
+        - inst_id: 产品ID，例如："SOL-USDT"（现货）或 "SOL-USDT-SWAP"（合约）
         - side: 订单方向，"buy" 或 "sell"
         - amount: 委托数量
         
@@ -62,18 +62,10 @@ class DemoTradeManager:
                     "data": None
                 }
             
-            # 验证是否是合约交易
-            if not inst_id.endswith('-SWAP'):
-                return {
-                    "success": False,
-                    "message": "模拟盘仅支持合约交易",
-                    "data": None
-                }
-            
-            # 准备订单参数
+            # 准备订单参数（现货模式）
             order_data = {
-                "instId": inst_id,        # 产品ID
-                "tdMode": "cash",         # 交易模式：现金
+                "instId": "SOL-USDT",     # 使用现货交易对
+                "tdMode": "cash",         # 现货模式
                 "side": side,             # 订单方向
                 "ordType": "market",      # 市价单
                 "sz": str(amount)         # 委托数量
@@ -99,9 +91,11 @@ class DemoTradeManager:
                     "data": result.get('data', [])
                 }
             else:
+                error_msg = result.get('msg', '未知错误')
+                logger.error(f"下单失败，错误码：{result.get('code')}，错误信息：{error_msg}")
                 return {
                     "success": False,
-                    "message": f"模拟盘下单失败: {result.get('msg', '未知错误')}",
+                    "message": f"模拟盘下单失败: {error_msg}",
                     "data": None
                 }
                 

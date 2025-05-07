@@ -102,3 +102,29 @@
         "outTime": "1746455917107155"
     }
 }
+{
+    "timestamp": "2025-05-05 22:58:42.714953",
+    "order": {
+        "instId": "SOL-USDT-SWAP",
+        "tdMode": "cross",
+        "side": "buy",
+        "ordType": "market",
+        "sz": "0.02"
+    },
+    "result": {
+        "code": "1",
+        "data": [
+            {
+                "clOrdId": "",
+                "ordId": "",
+                "sCode": "51010",
+                "sMsg": "You can't complete this request under your current account mode. ",
+                "tag": "",
+                "ts": "1746457122606"
+            }
+        ],
+        "inTime": "1746457122605658",
+        "msg": "All operations failed",
+        "outTime": "1746457122608363"
+    }
+}

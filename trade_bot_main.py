@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import traceback
+import decimal
 from decimal import Decimal
 from datetime import datetime
 
@@ -372,42 +373,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     print(f"\n收到来自用户 {user.first_name}({user.id}) 的消息: {text}")
     
-    # 处理等待币种输入状态
-    if context.user_data.get('state') == 'waiting_for_crypto_balance':
-        crypto = text.upper().strip() if text.strip() else 'SOL'
-        wallet_address = user_wallets.get(user.id)
-        
-        msg = await update.message.reply_text(f"正在查询 {crypto} 余额...")
-        
-        try:
-            trading_balance, cash_balance, usd_value, balance_source, currency = await get_wallet_balance(wallet_address, crypto)
-            
-            # 获取当前币价
-            current_price = await get_sol_price_okx() if crypto == 'SOL' else 0.0
-            price_info = f"\n💲 当前价格: ${current_price:.2f}" if current_price > 0 else ""
-            
-            trading_mode = "模拟盘" if CONFIG['OKX_API']['FLAG'] == '1' else "实盘"
-            await msg.edit_text(
-                f"📊 {crypto} 钱包信息 ({trading_mode})：\n\n"
-                f"📍 地址: {wallet_address}\n"
-                f"💰 可用余额: {trading_balance} {currency}\n"
-                f"💵 总余额: {cash_balance} {currency}\n"
-                f"💎 估值: ${usd_value} USD{price_info}\n"
-                f"🏦 数据来源: {balance_source}",
-                reply_markup=MAIN_MENU_MARKUP
-            )
-        except Exception as e:
-            logger.error(f"查询钱包余额错误: {e}")
-            await msg.edit_text(
-                f"❌ 查询 {crypto} 余额失败！\n"
-                "请检查币种代码是否正确，或稍后重试。",
-                reply_markup=MAIN_MENU_MARKUP
-            )
-        
-        # 重置用户状态
-        context.user_data['state'] = None
-        return
-        
+    # 首先检查是否是钱包地址
     if is_valid_solana_address(text):
         msg = await update.message.reply_text("正在验证钱包地址...")
         
@@ -432,17 +398,153 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "请检查钱包地址是否正确，或稍后重试。"
             )
         return
+    
+    # 处理等待交易币种输入状态
+    if context.user_data.get('state') == 'waiting_for_trade_pair':
+        # 解析用户输入的交易对
+        coins = text.upper().strip().split('-')
+        if len(coins) != 2:
+            await update.message.reply_text(
+                "❌ 请按正确格式输入交易对\n"
+                "例如：BTC-ETH（用BTC购买ETH）",
+                reply_markup=MAIN_MENU_MARKUP
+            )
+            return
+            
+        coin_a, coin_b = coins
+        inst_id = f"{coin_b}-{coin_a}-SWAP"  # 构建交易对ID
+        
+        # 保存交易对信息到用户上下文
+        context.user_data['trade_pair'] = inst_id
+        
+        # 提示用户输入交易数量
+        await update.message.reply_text(
+            f"请输入要使用 {coin_a} 购买 {coin_b} 的数量：\n"
+            f"（请输入数字，例如：0.1）"
+        )
+        
+        # 更新状态为等待输入数量
+        context.user_data['state'] = 'waiting_for_amount'
+        return
+        
+    # 处理等待输入数量状态
+    if context.user_data.get('state') == 'waiting_for_amount':
+        try:
+            amount = Decimal(text.strip())  # 添加 strip() 去除可能的空白字符
+            
+            # 验证数量是否在允许范围内
+            if amount < CONFIG['TRADE']['MIN_AMOUNT']:
+                await update.message.reply_text(
+                    f"❌ 数量太小\n最小交易数量为：{CONFIG['TRADE']['MIN_AMOUNT']}"
+                )
+                return
+                
+            if amount > CONFIG['TRADE']['MAX_AMOUNT']:
+                await update.message.reply_text(
+                    f"❌ 数量太大\n最大交易数量为：{CONFIG['TRADE']['MAX_AMOUNT']}"
+                )
+                return
+            
+            # 创建交易管理器
+            trading_mode = "模拟盘" if CONFIG['OKX_API']['FLAG'] == '1' else "实盘"
+            if CONFIG['OKX_API']['FLAG'] == '1':
+                trade_manager = DemoTradeManager(
+                    CONFIG['OKX_API']['DEMO']['API_KEY'],
+                    CONFIG['OKX_API']['DEMO']['SECRET_KEY'],
+                    CONFIG['OKX_API']['DEMO']['PASSPHRASE']
+                )
+            else:
+                trade_manager = TradeManager(
+                    CONFIG['OKX_API']['LIVE']['API_KEY'],
+                    CONFIG['OKX_API']['LIVE']['SECRET_KEY'],
+                    CONFIG['OKX_API']['LIVE']['PASSPHRASE'],
+                    CONFIG['OKX_API']['FLAG']
+                )
+            
+            # 执行交易
+            result = await trade_manager.place_order(
+                inst_id,
+                'buy',  # 使用买入方向
+                amount
+            )
+            
+            if result['success']:
+                order_data = result['data'][0]
+                await update.message.reply_text(
+                    f"✅ 订单已提交！({trading_mode})\n\n"
+                    f"📊 订单信息：\n"
+                    f"订单ID: {order_data.get('ordId', 'Unknown')}\n"
+                    f"交易对: {inst_id}\n"
+                    f"数量: {amount}\n"
+                    f"状态: {order_data.get('state', 'Unknown')}",
+                    reply_markup=MAIN_MENU_MARKUP
+                )
+            else:
+                await update.message.reply_text(
+                    f"❌ 交易失败 ({trading_mode})：{result['message']}",
+                    reply_markup=MAIN_MENU_MARKUP
+                )
+            
+            # 重置状态
+            context.user_data['state'] = None
+            context.user_data.pop('trade_pair', None)
+            
+        except ValueError as ve:
+            await update.message.reply_text(
+                "❌ 请输入有效的数字金额\n"
+                "例如：0.1、1.5、2 等"
+            )
+            logger.error(f"数值转换错误: {ve}")
+        except decimal.InvalidOperation as de:
+            await update.message.reply_text(
+                "❌ 输入的数字格式无效\n"
+                "请使用正确的数字格式，例如：0.1、1.5、2 等"
+            )
+            logger.error(f"Decimal 转换错误: {de}")
+        except Exception as e:
+            logger.error(f"处理交易请求错误: {str(e)}")
+            await update.message.reply_text(
+                "❌ 系统错误，请稍后重试\n"
+                "如果问题持续存在，请联系管理员"
+            )
+            context.user_data['state'] = None
+        return
 
     try:
-        amount = Decimal(text)
+        # 去除输入字符串两端的空白字符
+        cleaned_text = text.strip()
         
+        # 尝试转换为 Decimal
+        try:
+            amount = Decimal(cleaned_text)
+        except decimal.InvalidOperation:
+            await update.message.reply_text(
+                "❌ 输入的数字格式无效\n"
+                "请使用正确的数字格式，例如：\n"
+                "• 0.1\n"
+                "• 1.5\n"
+                "• 2"
+            )
+            return
+        
+        # 验证数量是否为正数
+        if amount <= 0:
+            await update.message.reply_text("❌ 请输入大于0的数量")
+            return
+            
         # 验证数量是否在允许范围内
         if amount < CONFIG['TRADE']['MIN_AMOUNT']:
-            await update.message.reply_text(f"❌ 数量太小，最小交易数量为 {CONFIG['TRADE']['MIN_AMOUNT']}")
+            await update.message.reply_text(
+                f"❌ 数量太小\n"
+                f"最小交易数量为：{CONFIG['TRADE']['MIN_AMOUNT']}"
+            )
             return
             
         if amount > CONFIG['TRADE']['MAX_AMOUNT']:
-            await update.message.reply_text(f"❌ 数量太大，最大交易数量为 {CONFIG['TRADE']['MAX_AMOUNT']}")
+            await update.message.reply_text(
+                f"❌ 数量太大\n"
+                f"最大交易数量为：{CONFIG['TRADE']['MAX_AMOUNT']}"
+            )
             return
         
         # 获取交易方向
