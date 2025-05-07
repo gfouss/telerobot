@@ -2,40 +2,37 @@
 import json
 import logging
 from decimal import Decimal
+from datetime import datetime
 
-# 导入OKX需要的模块，使用OKX的API完成交易
+# 导入OKX需要的模块
 import okx.Trade as Trade
-from okx.Trade import TradeAPI
 
 # 设置日志记录器
 logger = logging.getLogger(__name__)
 
-# 添加必要的导入
-from datetime import datetime
-
-# 定义交易管理器类，通过封装底层的API，提供更高级别的交易操作
-class TradeManager:
-    def __init__(self, api_key, secret_key, passphrase, flag="1"):
+class DemoTradeManager:
+    """
+    模拟盘交易管理器
+    用于处理OKX模拟盘的交易操作
+    """
+    
+    def __init__(self, api_key, secret_key, passphrase):
         """
-        初始化交易管理器
+        初始化模拟交易管理器
         
         参数:
-            api_key (str): OKX API密钥，用于身份验证
+            api_key (str): OKX API密钥
             secret_key (str): OKX API密钥对应的秘钥
-            passphrase (str): API密码短语，用于进一步验证
-            flag (str): 交易环境标志
-                       "0": 实盘交易
-                       "1": 模拟交易（默认）
+            passphrase (str): API密码短语
         """
-        self.tradeAPI = TradeAPI(
+        self.tradeAPI = Trade.TradeAPI(
             api_key,
             secret_key,
             passphrase,
-            False,  # 是否使用WebSocket，这里设置为False表示使用REST API
-            flag
+            {"x-simulated-trading": "1"},  # 强制使用模拟交易
+            "1"  # 强制使用模拟盘
         )
-        self.is_demo = flag == "0"  # 添加实盘标志
-    
+        
     async def place_order(self, inst_id: str, side: str, amount: Decimal) -> dict:
         """
         下单函数
@@ -49,14 +46,6 @@ class TradeManager:
         - dict: 订单结果
         """
         try:
-            # 如果是模拟盘，检查是否是交易账户操作
-            if self.is_demo and not inst_id.endswith('-SWAP'):
-                return {
-                    "success": False,
-                    "message": "模拟盘仅支持合约交易",
-                    "data": None
-                }
-                
             # 验证参数
             if not inst_id or not side or not amount:
                 return {
@@ -73,6 +62,14 @@ class TradeManager:
                     "data": None
                 }
             
+            # 验证是否是合约交易
+            if not inst_id.endswith('-SWAP'):
+                return {
+                    "success": False,
+                    "message": "模拟盘仅支持合约交易",
+                    "data": None
+                }
+            
             # 准备订单参数
             order_data = {
                 "instId": inst_id,        # 产品ID
@@ -86,7 +83,7 @@ class TradeManager:
             result = self.tradeAPI.place_order(**order_data)
             
             # 记录订单信息
-            with open('order_history.txt', 'a') as file:
+            with open('demo_order_history.txt', 'a') as file:
                 json.dump({
                     "timestamp": str(datetime.now()),
                     "order": order_data,
@@ -98,18 +95,18 @@ class TradeManager:
             if result.get('code') == '0':
                 return {
                     "success": True,
-                    "message": "下单成功",
+                    "message": "模拟盘下单成功",
                     "data": result.get('data', [])
                 }
             else:
                 return {
                     "success": False,
-                    "message": f"下单失败: {result.get('msg', '未知错误')}",
+                    "message": f"模拟盘下单失败: {result.get('msg', '未知错误')}",
                     "data": None
                 }
                 
         except Exception as e:
-            logger.error(f"下单错误: {str(e)}")
+            logger.error(f"模拟盘下单错误: {str(e)}")
             return {
                 "success": False,
                 "message": f"系统错误: {str(e)}",
