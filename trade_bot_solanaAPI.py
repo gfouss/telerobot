@@ -302,6 +302,7 @@ async def test_rpc_node(network='testnet'):
     except Exception as e:
         return False, 0, f"错误: {str(e)}"
 
+# 主函数
 # Telegram 命令处理函数
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """处理 /start 命令"""
